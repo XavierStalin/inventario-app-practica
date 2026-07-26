@@ -1,0 +1,27 @@
+# ==========================================
+# RETO 1: El contenedor que "corre" pero no responde
+# ==========================================
+# INSTRUCCIONES:
+#   1. Construya la imagen: docker build -f Dockerfile.roto -t inventario-roto .
+#   2. Ejecute: docker run -d -p 4000:4000 --name reto1 inventario-roto
+#   3. Intente acceder: curl http://localhost:4000/health
+#   4. No responde. Diagnostique y corrija.
+
+# ==========================================
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+
+RUN npm install
+
+COPY . .
+
+# === DEFECTO AQUÍ ===
+# La aplicación escucha en puerto 3000 (ver server.js línea 66),
+# pero este Dockerfile expone el 4000
+EXPOSE 4000
+
+CMD ["node", "server.js"]

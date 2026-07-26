@@ -1,0 +1,51 @@
+# ==========================================
+# RETO 3: El pipeline que despliega aunque las pruebas fallen
+# ==========================================
+# INSTRUCCIONES:
+#   1. Observe que hay dos jobs: build-test y deploy
+#   2. Rompa un test a propósito (cambiar assert en server.test.js)
+#   3. Haga push y observe que deploy se ejecuta AUNQUE build-test falle
+#   4. Diagnostique por qué y corrija el workflow
+# ==========================================
+
+name: ci-cd
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+
+  # Job 1: Build y Test
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+
+  # Job 2: Deploy
+  # === DEFECTO: Falta "needs: build-test" ===
+  # Sin "needs", este job se ejecuta EN PARALELO con build-test,
+  # por lo que despliega aunque las pruebas fallen.
+  deploy:
+    runs-on: ubuntu-latest
+    # needs: build-test    # <-- ESTA LÍNEA FALTA / ESTÁ COMENTADA
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t app:${{ github.sha }} .
+
+      - name: Push Docker image
+        run: docker push registry/app:${{ github.sha }}
+
+      - name: Deploy to Kubernetes
+        run: kubectl set image deployment/inventario-app inventario-app=registry/app:${{ github.sha }}

@@ -1,0 +1,117 @@
+# ==========================================
+# GIRO FINAL: Escalar para triplicar tráfico + zero downtime deploy
+# ==========================================
+# INSTRUCCIONES:
+#   1. Aplique este deployment escalado
+#   2. Verifique que los 6 pods estén Ready
+#   3. Genere tráfico de prueba mientras despliega una nueva versión
+#   4. Confirme que no hubo interrupción
+# ==========================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventario-app
+  labels:
+    app: inventario-app
+spec:
+  # === CAMBIO 1: Triplicar réplicas (de 2 a 6) ===
+  replicas: 6
+
+  # === CAMBIO 2: Rolling Update sin downtime ===
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0     # NUNCA tener pods abajo durante el update
+      maxSurge: 2            # Crear hasta 2 pods extra durante el update
+
+  selector:
+    matchLabels:
+      app: inventario-app
+  template:
+    metadata:
+      labels:
+        app: inventario-app
+    spec:
+      containers:
+      - name: inventario-app
+        image: ghcr.io/xavierstalin/inventario-app:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+        env:
+        - name: APP_VERSION
+          value: "v2.0.0"        # Nueva versión para el deploy
+        - name: APP_COLOR
+          value: "green"         # Color diferente para verificar visualmente
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: API_KEY
+
+        # Readiness probe: K8s no envía tráfico hasta que el pod esté listo
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+
+        # Liveness probe: K8s reinicia el pod si deja de responder
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          failureThreshold: 3
+
+        # Recursos (requerido para HPA)
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+
+---
+
+# === CAMBIO 3 (ALTERNATIVA): HorizontalPodAutoscaler ===
+# En vez de fijar 6 réplicas, puedes usar HPA para escalar automáticamente
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: inventario-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: inventario-app
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50    # Escalar cuando el CPU promedio supere 50%
+
+---
+
+# Service (correcto, para referencia)
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventario-service
+spec:
+  type: ClusterIP
+  selector:
+    app: inventario-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000
