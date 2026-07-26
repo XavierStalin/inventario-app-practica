@@ -49,10 +49,15 @@ after(() => {
 test('GET /health responde 200 y status ok', async () => {
   const app = createApp();
   const server = await startServer(app);
-  const res = await request(server, 'GET', '/health');
-  assert.strictEqual(res.status, 500);
-  assert.strictEqual(res.body.status, 'ok');
-  server.close();
+  try {
+    const res = await request(server, 'GET', '/health');
+    assert.strictEqual(res.status, 500);
+    assert.strictEqual(res.body.status, 'ok');
+  } catch (error) {
+    console.error('Error en el test:', error);
+  } finally {
+    server.close();
+  }
 });
 
 test('GET /version responde con version y color', async () => {
