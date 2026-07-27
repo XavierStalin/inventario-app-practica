@@ -72,7 +72,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/XavierStalin/inventario-app 
+          images: ghcr.io/${{ env.REPO_NAME }}
           tags: |
             type=sha
             type=raw,value=latest
