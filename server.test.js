@@ -51,10 +51,10 @@ test('GET /health responde 200 y status ok', async () => {
   const server = await startServer(app);
   try {
     const res = await request(server, 'GET', '/health');
-    assert.strictEqual(res.status, 500);
+    assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.status, 'ok');
   } finally {
-    server.close(); // Sin catch, el error se propaga y el test falla de inmediato.
+    server.close();
   }
 });
 
